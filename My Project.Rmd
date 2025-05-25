@@ -1,0 +1,540 @@
+---
+title: "Projet Analyse de Donnée"
+author: "Chiheb Guesmi"
+date: "2024-12-26"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    theme: cerulean
+---
+
+
+
+
+```{r setup, include=FALSE}
+# Global options to suppress unnecessary outputs
+knitr::opts_chunk$set(
+  echo = TRUE,      # Show code by default
+  message = FALSE,  # Suppress library messages
+  warning = FALSE   # Suppress warnings
+)
+```
+
+# Introduction
+
+Ce rapport explore les données collectées sur l'impact des séries dans la vie quotidienne à travers trois analyses principales :
+
+**I/ Analyse en Composantes Principales (ACP)** 
+
+**II/ Analyse des Correspondances Multiples (ACM)** 
+
+**III/ Analyse Factorielle des Correspondances (AFC)**
+
+# Analyse en Composantes Principales (ACP)
+
+## 1ere ACP : analyse d'impact des séries sur le mood :
+**L'objectif principal de cette ACP est de :
+
+Réduire la dimensionnalité des données : Identifier les dimensions les plus importantes (composantes principales) qui expliquent la majorité de la variance des réponses.
+Découvrir des relations entre les variables : Mettre en évidence les corrélations ou associations entre les séries et leur impact perçu sur l'humeur.
+Simplifier l'interprétation des données : Regrouper des variables ou questions similaires et interpréter leur contribution commune au phénomène étudié.
+Identifier des profils ou tendances : Comprendre comment les séries influencent différemment l’humeur des individus (positivement, négativement, ou de manière neutre)**
+
+```{r}
+library(tidyverse)
+library(FactoMineR)
+library(factoextra)
+data <- read.csv("The Series Effect_ Uncover How Your Favorite Shows Shape Your Life  (Responses) - Form Responses 1.csv", stringsAsFactors = TRUE)
+```
+
+**Extraction des données :**
+
+```{r}
+likert_data <- data %>%
+  select(starts_with("Influence.on.mood.and.well.being..On.a.scale.from.1.to.5")) %>%
+  na.omit()
+colnames(likert_data) <- gsub(".*\\.\\.\\.([A-Za-z0-9\\.]+)$", "\\1", colnames(likert_data))
+
+# Convert columns to numeric
+likert_data <- likert_data %>% mutate(across(everything(), as.numeric))
+
+# Show the first few rows
+head(likert_data)
+```
+
+```{r}
+summary(likert_data)
+```
+**Réalisation de l'ACP **
+```{r}
+# Perform PCA
+res.pca=PCA(likert_data,ncp = 5,quanti.sup = 11:12,quali.sup = 13,graph = F)
+
+```
+
+```{r}
+summary(res.pca)
+```
+
+**Composantes Principales **
+
+```{r}
+
+# Extract eigenvalues
+eig_values <- res.pca$eig
+# Check the structure of eig_values
+#str(eig_values)
+
+
+# Create summary data frame using indexing instead of $ operator
+# Create the eigenvalue summary data frame
+eigen_summary <- data.frame(
+  Dimension = rownames(eig_values),  # Using row names as Dimension labels
+  Variance = eig_values[, 1],  # Eigenvalues (1st column)
+  `Percentage of Variance` = eig_values[, 2],  # Percentage of variance (2nd column)
+  `Cumulative % of Variance` = eig_values[, 3]  # Cumulative percentage of variance (3rd column)
+)
+
+# Print the eigenvalue summary
+print(eigen_summary)
+```
+
+```{r}
+fviz_screeplot(res.pca, ncp=10)
+
+```
+
+
+**Nombre D'axe à retenir **
+1/Critère cumulatif :
+
+Cela nécessiterait 6 composantes, puisque la variance cumulée à ce niveau est de 71.43%.
+
+2/Critère du coude :
+
+Selon le dernier plot , on peut opter pour 2 dimensions 
+
+3/Critère de Kaiser :
+
+Kaiser recommande de retenir les composantes dont la variance (valeur propre) est supérieure à 1. Cela inclut les 5 premières composantes, car leurs variances sont respectivement de 4.07, 1.86, 1.60, 1.18, et 1.07.
+
+Conclusion :
+Nous allons opter pour les 2 premiers axes.
+
+
+
+ 
+
+```{r}
+res.pca$var$coord
+```
+**Intérprétation des axes**
+
+Dim 1: **Popularité sociale et relationnelle** capture les séries qui influencent l'humour à travers des interactions sociales et des relations amicales(friends:0.4 ,how i met your mother: 0.5,the big bang theory:0.7).
+
+Dim 2: **Emotions profondes et dramatiques** se concentre sur l'impact émotionnel plus intense, notamment des intrigues dramatiques ou romantiques(game of thrones:0.4 , Bridgerton:0.45,Emily in paris: 0.55).
+```{r}
+# PCA individuals plot with enhancements
+fviz_pca_ind(res.pca,
+             col.ind = "red",        # Color of the individual points
+             geom = c("point", "text"),  # Show both points and labels
+             labelsize = 5,           # Adjust the size of the individual labels
+             pointsize = 3,           # Adjust the size of the points
+             repel = TRUE,            # Avoid overlapping labels
+             title = "PCA Individuals Plot",  # Title of the plot
+             xlab = "Dimension 1",    # X-axis label
+             ylab = "Dimension 2")    # Y-axis label
+
+```
+
+```{r}
+res.pca$var$cos2
+
+```
+
+```{r}
+library(factoextra)
+
+# PCA variable plot with improvements
+fviz_pca_var(res.pca,
+             col.var = "blue",        # Color of the variable points
+             geom = c("point", "text"),  # Show both points and labels
+             labelsize = 2,           # Adjust the size of the variable labels
+             pointsize = 0.5,           # Adjust the size of the points
+             repel = TRUE,            # Avoid overlapping labels
+             title = "PCA Variable Plot",  # Title of the plot
+             xlab = "Dimension 1",    # X-axis label
+             ylab = "Dimension 2")    # Y-axis label
+```
+**Interprétation**:
+
+Les séries comme The Big Bang Theory, How I Met Your Mother et Friends sont fortement associées au 1er axe, ce qui indique qu'elles sont principalement légères, humoristiques et axées sur des situations quotidiennes.
+À l'opposé, des séries plus neutres ou équilibrées, avec moins de focus comique (par exemple, Dark ou Bridgerton), sont plus proches du centre, reflétant un mélange de drame et d'humour subtil.
+
+Les séries comme Emily in Paris et Dark sont fortement alignées sur le 2eme axe, ce qui montre qu'elles mettent en avant des éléments narratifs complexes, un drame intense ou des émotions profondes.
+À l'inverse, des séries comme Friends et How I Met Your Mother ont une faible intensité dramatique, renforçant leur association avec un humour léger et des situations quotidiennes.
+
+
+The Big Bang Theory et Stranger Things dominent le quadrant "léger mais captivant", combinant un ton accessible avec une touche d'éléments dramatiques.
+
+Emily in Paris et Dark mettent en avant un style plus dramatique, moins centré sur l'humour, attirant un public à la recherche de contenu émotionnellement intense ou réfléchi.
+
+
+
+## 2eme ACP : analyse d'impact des séries sur les différentes perspective de la vie (amour /famille/amis) :
+
+```{r}
+likert_data_2 <- data %>%
+  select(starts_with("Change.in.perspective.on.love")) %>%
+  na.omit()
+colnames(likert_data_2) <- gsub(".*\\.\\.\\.([A-Za-z0-9\\.]+)$", "\\1", colnames(likert_data_2))
+
+# Convert columns to numeric
+likert_data_2 <- likert_data_2 %>% mutate(across(everything(), as.numeric))
+
+# Show the first few rows
+head(likert_data_2)
+summary(likert_data_2)
+
+```
+```{r}
+res2.pca = PCA(likert_data_2, ncp = 5, quanti.sup = 11:12, quali.sup = 13, graph = FALSE)
+summary(res2.pca)
+```
+
+```{r}
+eig_values2 <- res2.pca$eig
+# Check the structure of eig_values
+str(eig_values2)
+
+
+# Create summary data frame using indexing instead of $ operator
+# Create the eigenvalue summary data frame
+eigen_summary2 <- data.frame(
+  Dimension = rownames(eig_values2),  # Using row names as Dimension labels
+  Variance = eig_values2[, 1],  # Eigenvalues (1st column)
+  `Percentage of Variance` = eig_values2[, 2],  # Percentage of variance (2nd column)
+  `Cumulative % of Variance` = eig_values2[, 3]  # Cumulative percentage of variance (3rd column)
+)
+
+# Print the eigenvalue summary
+print(eigen_summary2)
+```
+
+```{r}
+fviz_screeplot(res2.pca, ncp=10)
+
+```
+
+```{res2.pca$var$coord}
+
+```
+
+```{r}
+fviz_pca_ind(res2.pca,
+             col.ind = "red",        # Color of the individual points
+             geom = c("point", "text"),  # Show both points and labels
+             labelsize = 5,           # Adjust the size of the individual labels
+             pointsize = 3,           # Adjust the size of the points
+             repel = TRUE,            # Avoid overlapping labels
+             title = "PCA Individuals Plot",  # Title of the plot
+             xlab = "Dimension 1",    # X-axis label
+             ylab = "Dimension 2")    # Y-axis label
+
+```
+
+```{r}
+res2.pca$var$cos2
+
+```
+**Interpétation des axes**:
+
+Dim1: **Transformation émotionnelle ou personnelle**.
+Cette dimension pourrait refléter l'impact émotionnel ou introspectif des séries sur le spectateur, comme un changement dans la perception des valeurs ou des émotions complexes. Par exemple, des séries comme Suits , Breaking bad ,Lost , The crown. avec des récits plus introspectifs ou émotionnellement stimulants, sont davantage liées à cette dimension.
+
+Dim2: **Impact sur la vision des relations sociales**.
+Cette dimension semble capturer l'effet global des séries sur les relations interpersonnelles et sociales, telles que l'amitié, l'amour ou les dynamiques familiales. Les séries comme Friends ou How I Met Your Mother, qui explorent profondément les relations et l'amitié, ont des contributions importantes sur cette dimension.
+
+
+```{r}
+
+fviz_pca_var(res2.pca,
+             col.var = "blue",        # Color of the variable points
+             geom = c("point", "text"),  # Show both points and labels
+             labelsize = 2,           # Adjust the size of the variable labels
+             pointsize = 0.5,           # Adjust the size of the points
+             repel = TRUE,            # Avoid overlapping labels
+             title = "PCA Variable Plot",  # Title of the plot
+             xlab = "Dimension 1",    # X-axis label
+             ylab = "Dimension 2")    # Y-axis label
+
+```
+
+**Interprétation**:
+
+Breaking Bad et Dark : Ces séries sont fortement associées au 1er axe ,explorent des thèmes intenses (morale, survie, choix difficiles) qui peuvent amener à des transformations personnelles.
+Inversement Friends ou How I Met Your Mother  offrent principalement du divertissement et sont moins susceptibles de provoquer des changements personnels profonds.
+
+
+
+Friends, How I Met Your Mother se concentrent sur les amitiés, les relations et la vie quotidienne, influençant fortement la vision des relations sociales.
+Breaking Bad ou Money Heist : Ces séries, bien que captivantes, sont centrées sur des intrigues personnelles ou criminelles, et leur impact sur la perception des relations sociales est moindre.
+
+
+
+
+# Analyse des Correspondances Multiples (ACM)
+**Extraction des données**
+```{r}
+binary_data <- data %>%
+  select(starts_with("Personal")) %>%
+  na.omit()
+
+# Show the first few rows
+#head(binary_data)
+```
+
+**Encodage des questions**
+```{r}
+
+print(sub("^.*\\.\\.\\.", "", colnames(binary_data)))
+
+
+```
+
+
+
+
+```{r}
+colnames(binary_data) <- paste0("q", 1:ncol(binary_data))
+head(binary_data)
+
+
+
+
+
+```
+
+
+**Effectuer l'ACM**
+
+```{r}
+res.mca <- MCA (binary_data, graph = FALSE)
+res.mca$eig
+
+
+
+```
+
+```{r}
+fviz_screeplot(res.mca)
+
+```
+
+
+
+```{r}
+fviz_mca_var (res.mca,
+              repel = TRUE, 
+              ggtheme = theme_minimal ())
+```
+
+
+**Interprétation**
+
+Profil "No" : Les répondants ayant souvent répondu "No" (notamment pour Q1, Q3, Q4, Q5, Q6, et Q7) forment un groupe homogène dans le quadrant supérieur gauche. Ces réponses sont cohérentes et fortement associées entre elles.
+
+Profil "Yes" : Les réponses "Yes" (notamment Q1_Yes, Q9_Yes, Q10_Yes) sont plus dispersées, indiquant une diversité plus importante dans les comportements des répondants positifs.
+
+```{r}
+fviz_mca_var(res.mca, select.var = list(cos2 = 0.4))
+```
+
+
+
+
+
+
+
+# Analyse Factorielle des Correspondances (AFC) :
+
+
+Cette partie sert à trouver des coorélation entre Profession (occupation) eg..étudiant,fonctionnaire,élève et Raison de regarder les séries (eg. chill , relax , plot)
+
+
+
+
+
+**Extraction des données**
+
+```{r}
+# Load necessary library
+library(dplyr)
+
+# Assuming 'your_dataframe' is the name of your original dataframe
+data_afc <- data.frame(
+  occupation = data %>%
+    select(starts_with("What.is.your.current")) %>%
+    na.omit() %>%
+    pull(),  # Use pull() to extract the column as a vector
+  primary_reason = data %>%
+    select(starts_with("Primary.reason")) %>%
+    na.omit() %>%
+    pull()  # Use pull() to extract the column as a vector
+)
+head(data_afc)
+
+```
+
+## Tableau de contingence :
+
+```{r}
+
+contingency_table <- table(data_afc$occupation, data_afc$primary_reason)
+addmargins(contingency_table)
+
+```
+
+
+**Profil lignes**
+
+```{r}
+
+library(questionr)
+lprop(contingency_table)
+
+```
+**Interprétation**
+0% des employés regardent une série parce qu'elle est tendance, la majorité le fait pour se détendre, tandis que 81% des lycéens regardent les séries pour leur intrigue.
+
+
+
+
+**Profils Colonnes **
+
+```{r}
+cprop(contingency_table)
+
+
+```
+**Interprétation**
+
+Pour la catégorie 'The storyline', elle est composée de 7% des employés, 22% des lycéens, 2% des chômeurs et 68% des étudiants.
+
+
+
+
+
+## Test KH 2 :
+```{r}
+test<-chisq.test(contingency_table)
+test
+
+```  
+**Interprétation**
+
+Puisque 0.4 > 0.05, on retient H₀ et on conclut qu'il n'y a pas de preuve statistique d'une dépendance significative entre les variables.
+
+La pertinance de cette AFC est donc faible !
+
+L'inertie totale est χ2/n = 12.581/71 = 0,17719
+
+**Effectuer l'AFC**
+
+```{r}
+library(FactoMineR)
+
+res.ca<-CA(contingency_table,graph=F)
+summary(res.ca)
+```
+
+```{r}
+
+
+eig.val <- res.ca$eig
+round(res.ca$eig,3)
+```
+
+```{r}
+
+barplot(eig.val[, 2], 
+        names.arg = 1:nrow(eig.val), 
+        main = "Variances Explained by Dimensions (%)",
+        xlab = "Principal Dimensions",
+        ylab = "Percentage of variances",
+        col ="steelblue")
+# Add connected line segments to the plot
+lines(x = 1:nrow(eig.val), eig.val[, 2], 
+      type = "b", pch = 19, col = "red")
+
+```
+
+## carte profile-colonnes: 
+
+```{r}
+
+round(cbind(res.ca$col$coord[,1:2],res.ca$col$contrib[,1:2], res.ca$col$cos2[,1:2]),2)
+```
+
+```{r}
+
+plot(res.ca, invisible="row")
+```
+
+Les catégories professionnelles qui regardent les séries télévisées pour les personnages et l'intrigue ont le même profil. Elles s'opposent à ceux qui regardent les séries pour se détendre. Cependant, il y a une forte ressemblance entre les profils qui regardent pour la tendance et la qualité visuelle.
+
+## carte profile ligne :
+
+
+```{r}
+
+round(cbind(res.ca$row$coord[,1:2],res.ca$row$contrib[,1:2], res.ca$row$cos2[,1:2]),2)
+```
+
+```{r}
+
+plot(res.ca, invisible="col")
+```
+
+**Interprétation**:
+
+
+On trouve une ressemblance entre les lycéens et les chômeurs ; ces deux derniers sont opposés au profil des employés dans les raisons qui les poussent à regarder les séries.
+
+```{r}
+library(factoextra)
+
+fviz_ca_biplot(res.ca)
+```
+**Interprétation ** :
+
+**Employed et To relax/unwind proches** :
+
+Employed (fortement associé à Dim 1) est proche de To relax/unwind, suggérant que les employés privilégient la détente comme motivation principale.
+
+**University Student aligné avec "The visuals/production quality"** :
+
+University Student est fortement lié à The visuals/production quality sur Dim 2, montrant que les étudiants universitaires accordent une grande importance à la qualité visuelle.
+
+
+**Opposition entre High School Student et Employed** :
+
+High School Student et Employed sont opposés sur Dim 1, indiquant des motivations différentes : les lycéens sont plus intéressés par The characters et The storyline, tandis que les employés cherchent à se détendre.
+
+
+# Conclusion:
+Ce projet a abordé les différents aspects statistiques étudiés en cours : **ACP** (Analyse en Composantes Principales), **AFC** (Analyse Factorielle des Correspondances) et **ACM** (Analyse des Correspondances Multiples) afin d'extraire des connaissances à partir d'une base de données.
+
+L'objectif principal était d'étudier l'impact des séries télévisées sur notre quotidien. Pour cela, nous avons réalisé deux ACP :
+
+La première ACP visait à **identifier la relation entre les séries et l'amour**.
+La deuxième ACP a permis d'**analyser l'impact des séries sur différentes valeurs** telles que l'amour, l'amitié, la famille, etc.
+Ensuite, nous avons utilisé une ACM pour examiner la **corrélation entre les profils des spectateurs et leurs réponses de type oui/non**.
+
+Enfin, une AFC a été réalisée afin de distinguer la **relation entre les spectateurs et leurs raisons de regarder des séries télévisées**.
+
+Toutes ces analyses **ont été accompagnées d'une interprétation des résultats visuels**.
+
+En conclusion, nous pouvons affirmer que l'objectif initial du projet a été atteint.
